@@ -1,0 +1,57 @@
+---
+title: 
+output: html_document
+runtime: shiny
+---
+
+#####   We are going to use data sets: mtcars, diamonds and IRIS to visualize grapics.The list below sorts the visualizations based on its primary purpose. Primarily, there are 8 types of objectives you may construct plots. So, before you actually make the plot, try and figure what findings and relationships you would like to convey or examine through the visualization
+
+
+## Summary of Mtcars dataFile
+``` {r mtcars}
+summary(mtcars)
+```
+
+
+
+```{r, echo = FALSE}
+library(ggplot2)
+```
+
+
+#Cylinder and HORSE POWER
+```{r} 
+ggplot(mtcars) + geom_point(aes(x = cyl, y = hp))
+```
+
+
+##Geom_Boxplot 
+```{r}
+   ggplot(mtcars, aes(x = mpg, y = hp, col = vs)) + geom_boxplot(aes(fill = am)) + theme_dark()
+```
+
+
+#Geom_density
+```{r}
+   ggplot(mtcars) + geom_density(aes(x = mpg,  col = am ,fill = am), alpha = 0.3) + theme_minimal()
+```
+
+
+
+###TTEST
+```{r}
+  library(ggplot2)
+  chi <-chisq.test(mtcars$mpg,mtcars$hp)
+  main_stat<-chi
+  
+  print(main_stat)
+```
+
+#AOV
+############# The one-way analysis of variance (ANOVA), also known as one-factor ANOVA, is an extension of independent two-samples t-test for comparing means in a situation where there are more than two groups. In one-way ANOVA, the data is organized into several groups base on one single grouping variable (also called factor variable). This tutorial describes the basic principle of the one-way ANOVA test and provides practical anova test examples in R software
+
+
+
+
+
+

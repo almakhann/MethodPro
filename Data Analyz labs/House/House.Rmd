@@ -1,0 +1,166 @@
+---
+title: "House"
+output: html_document
+---
+###Almakhan Serik
+####29.06.2018
+
+## Competition Description
+
+Ask a home buyer to describe their dream house, and they probably won't begin with the height of the basement ceiling or the proximity to an east-west railroad. But this playground competition's dataset proves that much more influences price negotiations than the number of bedrooms or a white-picket fence.
+
+With 79 explanatory variables describing (almost) every aspect of residential homes in Ames, Iowa, this competition challenges you to predict the final price of each home.
+
+```{r, echo=TRUE, message=FALSE}
+  setwd("~/Desktop/House")
+```
+
+
+```{r, echo=TRUE, message=FALSE}
+library(PerformanceAnalytics)
+library(rpart)
+library(randomForest)
+library(ROSE)
+library(car)
+library(caret)
+library(lubridate)
+library(corrplot)
+library(psych)
+library(dplyr)
+library(missForest)
+library(xgboost)
+```
+
+#### Train Data 
+ Data manipulation firstly changed all integer values to numeric.Then removed columns which are character and used only numeric values.
+```{r}
+train <- read.csv("train.csv")
+
+train <- train %>% mutate_if(is.integer,as.numeric)
+
+nums <- unlist(lapply(train, is.numeric))  
+t <- train[nums]
+
+d <- missForest(t)
+df <- d$ximp
+d$OOBerror
+sum(is.na(df))
+```
+
+#### Test Data
+MISSFOREST-is used to impute missing values particularly in the case of mixed-type data. 
+Formula: (mean((Xtrue - Ximp)/var(Xtrue))^0.5
+```{r, results='hide'}
+#TEST
+test <- read.csv("test.csv")
+test <- test %>% mutate_if(is.integer,as.numeric)
+nums <- unlist(lapply(test, is.numeric))  
+test_df <- test[nums]
+
+d <- missForest(test_df)
+testing <- d$ximp
+d$OOBerror
+```
+
+Divide data into two part(80% - 20%), first part to make search, second to test data which predicted 
+```{r}
+index <- createDataPartition(df$SalePrice, p=0.8,list = F)
+train <- df[index,]
+test <- df[-index,]
+
+```
+
+
+
+```{r}
+#Saving Data
+saveData <- function(x){
+  testing$SalePrice <- predict(rf,testing)
+  new_data <- data.frame(testing[,"Id"])
+  new_data$SalePrice <- testing[,"SalePrice"]
+  write.csv(new_data, "myresult.csv", row.names=FALSE)
+}
+
+checkData <- function(x){
+  pred <- predict(x,test)
+  print(RMSE(test$SalePrice,pred))
+  print((summary(x))$adj.r.square)
+}
+
+checkDt <- function(x){
+  pred <- predict(x,test)
+  print(RMSE(test$SalePrice,pred))
+ 
+}
+```
+
+```{r}
+#RandomForest
+rf <- randomForest(SalePrice ~., train,
+                   type="classification",
+                   ntree=100,
+                   do.trace=F)
+checkDt(rf)
+
+rf1 <- randomForest(SalePrice ~ MSSubClass + LotFrontage + LotArea + OverallQual + 
+                      OverallCond + YearBuilt + YearRemodAdd + MasVnrArea + BsmtFinSF1 + 
+                      BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BsmtFullBath + FullBath + 
+                      BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + 
+                      GarageCars + WoodDeckSF + X3SsnPorch + ScreenPorch , train,
+                   type="regression",
+                   ntree=1000,
+                   do.trace=F)
+checkDt(rf1)
+```
+
+ linear regression is a linear approach to modelling the relationship between a  dependent variable and one or more independent variables. 
+```{r}
+#LM
+lm <- lm(SalePrice~.,train)
+checkData(lm)
+```
+
+```{r,results='hide'}
+step(lm,direction = "backward")
+```
+
+```{r}
+lm1 <- lm(SalePrice ~ MSSubClass + LotFrontage + LotArea + OverallQual + 
+           OverallCond + YearBuilt + YearRemodAdd + MasVnrArea + BsmtFinSF1 + 
+           BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BsmtFullBath + FullBath + 
+           BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + 
+           GarageCars + WoodDeckSF + X3SsnPorch + ScreenPorch,train)
+checkData(lm1)
+```
+
+
+```{r}
+#XGBoost
+train_matrix <- data.matrix(select(train,-SalePrice))
+test_matrix <- data.matrix(select(test,-SalePrice))
+
+train_target <- train$SalePrice
+test_target <- test$SalePrice
+
+dtrain <- xgb.DMatrix(data=train_matrix,label=train_target)
+ctest <- xgb.DMatrix(data=test_matrix,label=test_target)
+
+watchlist <- list(train=dtrain,test=ctest)
+xgb <- xgb.train(data=dtrain,
+                 nround=1000,
+                 maximize = FALSE,
+                 early_stopping_rounds = 10,
+                 watchlist = watchlist,
+                 max_depth=4,
+                 eval_metric = "rmse",
+                 alpha=0.05,
+                 lambda=0.05,
+                 colsample_bytree=0.7,
+                 subsample = 0.7,
+)
+pred_xgb <- predict(xgb,ctest)
+RMSE(test_target,pred_xgb)
+````
+
+
+
